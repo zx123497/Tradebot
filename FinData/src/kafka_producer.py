@@ -1,7 +1,7 @@
-import json
 from datetime import datetime, timezone
 
 from kafka import KafkaProducer
+from kafka.serializer import DefaultSerializer, JsonSerializer
 
 
 class TradeKafkaProducer:
@@ -9,8 +9,8 @@ class TradeKafkaProducer:
         self.topic = topic
         self.producer = KafkaProducer(
             bootstrap_servers=bootstrap_servers.split(","),
-            key_serializer=lambda key: key.encode("utf-8"),
-            value_serializer=lambda value: json.dumps(value).encode("utf-8"),
+            key_serializer=DefaultSerializer(),
+            value_serializer=JsonSerializer(),
             acks="all",
             retries=3,
         )

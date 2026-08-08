@@ -1,7 +1,8 @@
-import json
+from collections.abc import Callable
 from datetime import datetime
 
 from kafka import KafkaConsumer
+from kafka.serializer import DefaultSerializer, JsonSerializer
 
 
 class TradeKafkaConsumer:
@@ -18,20 +19,25 @@ class TradeKafkaConsumer:
             group_id=group_id,
             auto_offset_reset="latest",
             enable_auto_commit=True,
-            key_deserializer=lambda key: key.decode("utf-8") if key else None,
-            value_deserializer=lambda value: json.loads(value.decode("utf-8")),
+            key_deserializer=DefaultSerializer(),
+            value_deserializer=JsonSerializer(),
         )
 
-    def poll_and_print(self) -> None:
+    def poll(self, on_trade: Callable[[dict], None]) -> None:
         print(f"Listening on topic '{self.topic}'...")
         for message in self.consumer:
-            trade = message.value
+            on_trade(message.value)
+
+    def poll_and_print(self) -> None:
+        def print_trade(trade: dict) -> None:
             trade_time = datetime.fromtimestamp(trade["timestamp_ms"] / 1000)
             print(
                 f"[{trade['symbol']}] price={trade['price']} "
                 f"volume={trade['volume']} trade_time={trade_time} "
                 f"received_at={trade['received_at']}"
             )
+
+        self.poll(print_trade)
 
     def close(self) -> None:
         self.consumer.close()

@@ -3,14 +3,15 @@ name = "tradebot"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = "==3.11.*"
 dependencies = [
+    "clickhouse-connect>=0.8.18",
     "dotenv>=0.9.9",
     "kafka-python>=2.2.15",
     "lxml>=6.1.1",
-    "numpy>=2.5.1",
-    "pandas>=3.0.5",
+    "numpy>=1.24.4",
+    "pandas>=2.3.3",
     "python-dotenv>=1.1.1",
-    "websocket-client>=1.8.0",
+    "websocket-client>=1.9.0",
     "wikipedia>=1.4.0",
 ]
