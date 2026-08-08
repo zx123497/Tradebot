@@ -102,13 +102,104 @@ services:
       - taskmanager
       - kafka
       - kafka-init
+      - marquez
     command: /opt/flink/submit-job.sh
     environment:
       FLINK_KAFKA_BOOTSTRAP: kafka:9092
       KAFKA_TOPIC: sp500.trades
       KAFKA_BARS_TOPIC: sp500.bars.1m
       FLINK_KAFKA_GROUP: flink-bars-1m
+      OPENLINEAGE_URL: http://marquez:5000
+      OPENLINEAGE_NAMESPACE: tradebot
     restart: on-failure
+
+  # OpenLineage backend + UI (API on host 5002 to avoid macOS AirPlay on 5000)
+  marquez-db:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: marquez
+      POSTGRES_PASSWORD: marquez
+      POSTGRES_DB: marquez
+    volumes:
+      - marquez_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marquez -d marquez"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  marquez:
+    image: marquezproject/marquez:0.50.0
+    ports:
+      - "5002:5000"
+      - "5001:5001"
+    environment:
+      MARQUEZ_PORT: 5000
+      MARQUEZ_ADMIN_PORT: 5001
+      POSTGRES_HOST: marquez-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: marquez
+      POSTGRES_USER: marquez
+      POSTGRES_PASSWORD: marquez
+    depends_on:
+      marquez-db:
+        condition: service_healthy
+
+  marquez-web:
+    image: marquezproject/marquez-web:0.50.0
+    ports:
+      - "3000:3000"
+    environment:
+      MARQUEZ_HOST: marquez
+      MARQUEZ_PORT: 5000
+    depends_on:
+      - marquez
+
+  producer:
+    build:
+      context: ..
+      dockerfile: FinData/Dockerfile
+    image: findata-python
+    env_file:
+      - .env
+    environment:
+      # Docker network endpoints (override host localhost values from .env)
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      OPENLINEAGE_URL: http://marquez:5000
+      OPENLINEAGE_NAMESPACE: tradebot
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      marquez:
+        condition: service_started
+    command: ["uv", "run", "--no-sync", "python", "main.py"]
+    restart: unless-stopped
+
+  consumer:
+    build:
+      context: ..
+      dockerfile: FinData/Dockerfile
+    image: findata-python
+    env_file:
+      - .env
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      OPENLINEAGE_URL: http://marquez:5000
+      OPENLINEAGE_NAMESPACE: tradebot
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
+      flink-job-submitter:
+        condition: service_started
+      marquez:
+        condition: service_started
+    command: ["uv", "run", "--no-sync", "python", "consumer.py"]
+    restart: unless-stopped
 
 volumes:
   clickhouse_data:
+  marquez_db:

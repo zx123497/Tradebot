@@ -10,6 +10,7 @@ import wikipedia as wp
 from dotenv import load_dotenv
 
 from kafka_producer import TradeKafkaProducer
+from lineage import OpenLineageEmitter, finnhub_dataset, kafka_dataset
 
 wp.set_user_agent(
     "sp500-updater (https://github.com/fja05680/sp500; contact: fja0568@gmail.com)"
@@ -59,6 +60,12 @@ def run_producer() -> None:
 
     producer = TradeKafkaProducer(bootstrap_servers=bootstrap_servers, topic=topic)
 
+    lineage = OpenLineageEmitter("finnhub_producer")
+    lineage.start(
+        inputs=[finnhub_dataset()],
+        outputs=[kafka_dataset(topic, bootstrap_servers)],
+    )
+
     def on_open(ws: websocket.WebSocketApp) -> None:
         for symbol in symbols:
             ws.send(json.dumps({"type": "subscribe", "symbol": symbol}))
@@ -81,10 +88,19 @@ def run_producer() -> None:
 
     def on_error(_ws: websocket.WebSocketApp, error: Exception) -> None:
         print(f"WebSocket error: {error}")
+        lineage.fail(
+            error=str(error),
+            inputs=[finnhub_dataset()],
+            outputs=[kafka_dataset(topic, bootstrap_servers)],
+        )
 
     def on_close(_ws: websocket.WebSocketApp, *_args) -> None:
         print("WebSocket closed, flushing Kafka producer")
         producer.close()
+        lineage.complete(
+            inputs=[finnhub_dataset()],
+            outputs=[kafka_dataset(topic, bootstrap_servers)],
+        )
 
     ws = websocket.WebSocketApp(
         FINNHUB_WS_URL.format(token=api_key),

@@ -29,6 +29,7 @@ By default the producer filters to the **Information Technology** GICS sector.
 | Apache Kafka | Message bus for raw trades and aggregated bars |
 | Apache Flink 2.3 | Event-time 1-minute tumbling window aggregation |
 | ClickHouse | Analytical store for OHLCV bars |
+| [Marquez](https://marquezproject.ai/) / OpenLineage | Job & dataset lineage |
 | Python 3.11 + `uv` | Producer and consumer |
 
 ## Project layout
@@ -45,7 +46,8 @@ tradebot/
 │       ├── consumer.py         # Kafka bars → ClickHouse
 │       ├── kafka_producer.py
 │       ├── kafka_consumer.py
-│       └── clickhouse_store.py
+│       ├── clickhouse_store.py
+│       └── lineage.py          # OpenLineage → Marquez emitter
 ├── findata-flink/              # Java Flink job
 │   ├── Dockerfile
 │   ├── submit-job.sh
@@ -88,39 +90,34 @@ Edit `FinData/.env` and set `FINNHUB_API_KEY`. Other defaults work for local Doc
 
 ## Run
 
-### 1. Start infrastructure
+### 1. Start everything (recommended for home lab / VM)
+
+Ensure `FinData/.env` has `FINNHUB_API_KEY`, then:
 
 ```bash
-make infra
+make up
 # equivalent: cd FinData && docker compose up -d --build
 ```
 
-This starts:
-
-- Kafka (`localhost:9094`) + topic init (`sp500.trades`, `sp500.bars.1m`)
-- ClickHouse (`localhost:8123` HTTP, `localhost:9000` native)
-- Flink JobManager / TaskManager
-- Auto-submit of `DataStreamJob`
-
-Flink UI: http://localhost:8081
-
-### 2. Start the producer
+This starts Kafka, ClickHouse, Flink, Marquez, **producer**, and **consumer**.
 
 ```bash
-make producer
+make logs-producer   # follow producer logs
+make logs-consumer   # follow consumer logs
 ```
 
-Streams Finnhub trades for the selected sector into `sp500.trades`.
-
-### 3. Start the consumer
+### 2. Infra only + local Python apps
 
 ```bash
+make infra           # Docker services without producer/consumer
+make producer        # host process via uv
 make consumer
 ```
 
-Reads 1-minute bars from `sp500.bars.1m` and inserts them into ClickHouse `findata.bars_1m`.
+Flink UI: http://localhost:8081  
+Marquez UI: http://localhost:3000 (API: http://localhost:5002)
 
-Bars appear after each 1-minute event-time window closes (plus a short watermark delay).
+Inside Docker, producer/consumer use `kafka:9092`, `clickhouse:8123`, and `marquez:5000`. Host runs still use `localhost` values from `.env`.
 
 ## Query ClickHouse
 
@@ -169,6 +166,29 @@ curl -s http://localhost:8081/jobs/overview | python3 -m json.tool
 | ClickHouse HTTP | 8123 |
 | ClickHouse native | 9000 |
 | Flink UI | 8081 |
+| Marquez API | 5002 |
+| Marquez admin | 5001 |
+| Marquez UI | 3000 |
+
+## OpenLineage / Marquez
+
+The pipeline emits OpenLineage run events to Marquez:
+
+| Job | Inputs | Outputs |
+|-----|--------|---------|
+| `finnhub_producer` | `finnhub.trades` | `kafka.sp500.trades` |
+| `flink_ohlcv_1m` | `kafka.sp500.trades` | `kafka.sp500.bars.1m` |
+| `bars_clickhouse_consumer` | `kafka.sp500.bars.1m` | `clickhouse.findata.bars_1m` |
+
+Config (in `FinData/.env`):
+
+```
+OPENLINEAGE_URL=http://localhost:5002
+OPENLINEAGE_NAMESPACE=tradebot
+OPENLINEAGE_ENABLED=true
+```
+
+Browse lineage at http://localhost:3000 and search for `flink_ohlcv_1m` or `sp500.bars.1m`.
 
 ## Notes
 

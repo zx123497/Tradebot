@@ -1,6 +1,7 @@
 package findata;
 
 import findata.aggregator.TradeAggregator;
+import findata.lineage.OpenLineageEmitter;
 import findata.model.BarOutput;
 import findata.model.Trade;
 import findata.serde.BarSerializationSchema;
@@ -29,6 +30,9 @@ public class DataStreamJob {
 		String tradesTopic = envOrDefault("KAFKA_TOPIC", "sp500.trades");
 		String barsTopic = envOrDefault("KAFKA_BARS_TOPIC", "sp500.bars.1m");
 		String groupId = envOrDefault("FLINK_KAFKA_GROUP", "flink-bars-1m");
+
+		OpenLineageEmitter lineage = new OpenLineageEmitter("flink_ohlcv_1m");
+		lineage.start(tradesTopic, barsTopic, brokers);
 
 		KafkaSource<Trade> source = KafkaSource.<Trade>builder()
 				.setBootstrapServers(brokers)
@@ -61,7 +65,13 @@ public class DataStreamJob {
 		aggregatedBars.sinkTo(sink);
 		aggregatedBars.print();
 
-		env.execute("1-Minute OHLCV and VWAP Job");
+		try {
+			env.execute("1-Minute OHLCV and VWAP Job");
+			lineage.complete(tradesTopic, barsTopic, brokers);
+		} catch (Exception e) {
+			lineage.fail(tradesTopic, barsTopic, brokers, e.getMessage());
+			throw e;
+		}
 	}
 
 	/** Attach tumbling-window start millis onto the aggregated bar. */
