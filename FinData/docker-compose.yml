@@ -38,7 +38,7 @@ services:
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
 
   clickhouse:
-    image: clickhouse/clickhouse-server:latest
+    image: clickhouse/clickhouse-server:22.3-alpine
     ports:
       - "8123:8123"
       - "9000:9000"
