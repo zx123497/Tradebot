@@ -1,0 +1,19 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "FinLab API — ClickHouse-backed market data for the trading UI"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "clickhouse-connect>=0.8.18",
+    "fastapi[standard]>=0.141.1",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.1.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]

@@ -35,20 +35,10 @@ By default the producer filters to the **Information Technology** GICS sector.
 
 ```
 tradebot/
-├── FinData/
-│   ├── docker-compose.yml
-│   ├── clickhouse/init.sql
-│   ├── sp500.csv
-│   ├── .env.example
-│   ├── src/
-│   │   ├── findata/            # Installable package (ports, apps, adapters)
-│   │   ├── main.py             # Thin CLI → findata.producer_app
-│   │   ├── consumer.py         # Thin CLI → findata.consumer_app
-│   │   ├── mock_finnhub_ws.py
-│   │   └── seed_trades.py
-│   └── tests/
-│       ├── unit/               # Fast tests with fakes (no infra)
-│       └── integration/        # E2E pipeline (Kafka/Flink/ClickHouse)
+├── FinData/                    # Pipeline (Kafka / Flink / ClickHouse)
+├── FinLab/
+│   ├── backend/                # FastAPI → ClickHouse bars_1m
+│   └── frontend/               # Vite + shadcn realtime dashboard
 ├── findata-flink/              # Java Flink job
 ├── Makefile
 └── pyproject.toml
@@ -205,6 +195,25 @@ Or via Compose profile:
 ```bash
 cd FinData && docker compose --profile test up -d mock-finnhub
 ```
+
+## FinLab dashboard
+
+Realtime watchlist + candlestick UI over ClickHouse `bars_1m`.
+
+```bash
+# 1. Pipeline data available
+make infra
+cd FinData && docker compose up -d consumer
+
+# 2. API (http://localhost:8000/docs)
+make lab-api
+
+# 3. UI (http://localhost:5173) — proxies /api → :8000
+make lab-ui
+```
+
+API routes: `GET /api/health`, `/api/symbols`, `/api/bars`, `/api/bars/stream` (SSE).
+Copy `FinLab/backend/.env.example` if you need non-default ClickHouse settings.
 
 ## Notes
 

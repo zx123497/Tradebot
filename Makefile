@@ -40,5 +40,12 @@ test:
 test-integration:
 	uv run pytest FinData/tests/integration -m integration -q
 
+# FinLab dashboard (ClickHouse must be up with bars_1m data)
+lab-api:
+	cd FinLab/backend && uv run fastapi dev app/main.py --port 8000
+
+lab-ui:
+	cd FinLab/frontend && npm run dev
+
 down:
 	cd FinData && docker compose down

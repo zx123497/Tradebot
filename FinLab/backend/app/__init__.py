@@ -1,0 +1,1 @@
+"""FinLab FastAPI application package."""
