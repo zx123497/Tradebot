@@ -2,10 +2,14 @@ from collections.abc import Callable
 from datetime import datetime
 
 from kafka import KafkaConsumer
-from kafka.serializer import DefaultSerializer, JsonSerializer
+from kafka.serializer import DefaultSerializer
+
+from findata.json_serde import JsonBytesDeserializer
 
 
 class TradeKafkaConsumer:
+    """Kafka consumer for bar (or trade) JSON topics."""
+
     def __init__(
         self,
         bootstrap_servers: str,
@@ -20,13 +24,15 @@ class TradeKafkaConsumer:
             auto_offset_reset="latest",
             enable_auto_commit=True,
             key_deserializer=DefaultSerializer(),
-            value_deserializer=JsonSerializer(),
+            value_deserializer=JsonBytesDeserializer(),
         )
 
-    def poll(self, on_trade: Callable[[dict], None]) -> None:
+    def poll(self, on_bar: Callable[[dict], None]) -> None:
         print(f"Listening on topic '{self.topic}'...")
         for message in self.consumer:
-            on_trade(message.value)
+            if message.value is None:
+                continue
+            on_bar(message.value)
 
     def poll_and_print(self) -> None:
         def print_trade(trade: dict) -> None:

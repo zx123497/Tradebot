@@ -36,22 +36,20 @@ By default the producer filters to the **Information Technology** GICS sector.
 ```
 tradebot/
 ├── FinData/
-│   ├── docker-compose.yml      # Kafka, ClickHouse, Flink, producer, consumer
-│   ├── clickhouse/init.sql     # Schema (trades + bars_1m)
-│   ├── sp500.csv               # S&P 500 symbol universe
+│   ├── docker-compose.yml
+│   ├── clickhouse/init.sql
+│   ├── sp500.csv
 │   ├── .env.example
-│   └── src/
-│       ├── main.py             # Finnhub → Kafka producer
-│       ├── consumer.py         # Kafka bars → ClickHouse
-│       ├── kafka_producer.py
-│       ├── kafka_consumer.py
-│       ├── clickhouse_store.py
-│       └── lineage.py          # Optional OpenLineage emitter (disabled by default)
+│   ├── src/
+│   │   ├── findata/            # Installable package (ports, apps, adapters)
+│   │   ├── main.py             # Thin CLI → findata.producer_app
+│   │   ├── consumer.py         # Thin CLI → findata.consumer_app
+│   │   ├── mock_finnhub_ws.py
+│   │   └── seed_trades.py
+│   └── tests/
+│       ├── unit/               # Fast tests with fakes (no infra)
+│       └── integration/        # E2E pipeline (Kafka/Flink/ClickHouse)
 ├── findata-flink/              # Java Flink job
-│   ├── Dockerfile
-│   ├── submit-job.sh
-│   └── src/main/java/findata/
-│       └── DataStreamJob.java
 ├── Makefile
 └── pyproject.toml
 ```
@@ -67,7 +65,7 @@ tradebot/
 1. **Install Python deps**
 
 ```bash
-uv sync
+uv sync --extra dev
 ```
 
 2. **Configure environment**
@@ -164,6 +162,49 @@ curl -s http://localhost:8081/jobs/overview | python3 -m json.tool
 | ClickHouse HTTP | 8123 |
 | ClickHouse native | 9000 |
 | Flink UI | 8081 |
+
+## Tests
+
+```bash
+make test                 # unit tests (no Docker)
+make test-integration     # e2e (infra + consumer must be up)
+```
+
+Unit tests cover JSON serde, Finnhub message handling, consumer bar writes, fixtures, and mock WS replay via Protocol fakes.
+
+## Integration test
+
+Replay fixture trades from ClickHouse through a mock Finnhub WebSocket and assert Flink bars land in `bars_1m`.
+
+```bash
+# Infra + consumer (stop the live Finnhub producer if running)
+make infra
+cd FinData && docker compose up -d consumer
+
+make test-integration
+```
+
+What it covers:
+
+1. **Seed** deterministic AAPL ticks into `findata.trades` (unique event-time window)
+2. **Mock Finnhub WS** reads those rows and emits Finnhub trade messages
+3. **Producer** connects via `FINNHUB_WS_URL=ws://localhost:8765` and `SUBSCRIBE_SYMBOLS=AAPL`
+4. **Flink** aggregates → `sp500.bars.1m`
+5. **Consumer** writes → `findata.bars_1m`
+6. Assert OHLCV / VWAP / trade_count match the fixture
+
+Helpers:
+
+```bash
+make seed-trades      # seed only
+make mock-finnhub     # mock WS only (ws://localhost:8765)
+```
+
+Or via Compose profile:
+
+```bash
+cd FinData && docker compose --profile test up -d mock-finnhub
+```
 
 ## Notes
 

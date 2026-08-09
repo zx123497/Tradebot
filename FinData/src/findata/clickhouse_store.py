@@ -99,3 +99,36 @@ class TradeClickHouseStore:
                 "conditions",
             ],
         )
+
+
+class ClickHouseTradeSource:
+    """TradeSource adapter that reads Finnhub-shaped ticks from ClickHouse."""
+
+    def __init__(self, client):
+        self.client = client
+
+    def load_trades(self, symbols: set[str] | None = None) -> list[dict]:
+        if symbols:
+            symbol_list = ", ".join(f"'{s}'" for s in sorted(symbols))
+            query = (
+                "SELECT symbol, price, volume, timestamp_ms "
+                f"FROM trades WHERE symbol IN ({symbol_list}) "
+                "ORDER BY timestamp_ms ASC"
+            )
+        else:
+            query = (
+                "SELECT symbol, price, volume, timestamp_ms "
+                "FROM trades ORDER BY timestamp_ms ASC"
+            )
+        result = self.client.query(query)
+        trades = []
+        for symbol, price, volume, timestamp_ms in result.result_rows:
+            trades.append(
+                {
+                    "s": symbol,
+                    "p": float(price),
+                    "v": float(volume),
+                    "t": int(timestamp_ms),
+                }
+            )
+        return trades

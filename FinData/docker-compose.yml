@@ -151,5 +151,28 @@ services:
     command: ["uv", "run", "--no-sync", "python", "consumer.py"]
     restart: unless-stopped
 
+  # Integration-test helper: Finnhub-compatible WS replaying ClickHouse trades.
+  # Start with: docker compose --profile test up -d mock-finnhub
+  mock-finnhub:
+    profiles: ["test"]
+    build:
+      context: ..
+      dockerfile: FinData/Dockerfile
+    image: findata-python
+    env_file:
+      - .env
+    environment:
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      MOCK_FINNHUB_HOST: 0.0.0.0
+      MOCK_FINNHUB_PORT: 8765
+    ports:
+      - "8765:8765"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    command: ["uv", "run", "--no-sync", "python", "mock_finnhub_ws.py"]
+    restart: unless-stopped
+
 volumes:
   clickhouse_data:

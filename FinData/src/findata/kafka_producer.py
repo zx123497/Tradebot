@@ -1,7 +1,10 @@
 from datetime import datetime, timezone
 
 from kafka import KafkaProducer
-from kafka.serializer import DefaultSerializer, JsonSerializer
+from kafka.serializer import DefaultSerializer
+
+from findata.json_serde import JsonBytesSerializer
+from findata.models import finnhub_trade_to_payload
 
 
 class TradeKafkaProducer:
@@ -10,24 +13,14 @@ class TradeKafkaProducer:
         self.producer = KafkaProducer(
             bootstrap_servers=bootstrap_servers.split(","),
             key_serializer=DefaultSerializer(),
-            value_serializer=JsonSerializer(),
+            value_serializer=JsonBytesSerializer(),
             acks="all",
             retries=3,
         )
 
     def publish_trade(self, trade: dict) -> None:
-        symbol = trade["s"]
-        payload = {
-            "symbol": symbol,
-            "price": trade["p"],
-            "timestamp_ms": trade["t"],
-            "volume": trade["v"],
-            "received_at": datetime.now(timezone.utc).isoformat(),
-        }
-        if "c" in trade:
-            payload["conditions"] = trade["c"]
-
-        self.producer.send(self.topic, key=symbol, value=payload)
+        payload = finnhub_trade_to_payload(trade)
+        self.producer.send(self.topic, key=payload["symbol"], value=payload)
 
     def flush(self) -> None:
         self.producer.flush()

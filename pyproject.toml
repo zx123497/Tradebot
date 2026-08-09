@@ -14,5 +14,33 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "requests>=2.32.0",
     "websocket-client>=1.9.0",
+    "websockets>=14.0",
     "wikipedia>=1.4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+
+[project.scripts]
+findata-producer = "findata.producer_app:main"
+findata-consumer = "findata.consumer_app:main"
+findata-mock-finnhub = "findata.mock_finnhub:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["FinData/src"]
+include = ["findata*"]
+
+[tool.pytest.ini_options]
+testpaths = ["FinData/tests"]
+pythonpath = ["FinData/src", "FinData/tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: end-to-end tests that require Docker infra (Kafka, Flink, ClickHouse)",
 ]
