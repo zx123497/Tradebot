@@ -33,7 +33,7 @@ public final class OpenLineageEmitter {
 		this.jobName = jobName;
 		this.namespace = envOrDefault("OPENLINEAGE_NAMESPACE", "tradebot");
 		this.url = envOrDefault("OPENLINEAGE_URL", "http://marquez:5000").replaceAll("/$", "");
-		this.enabled = !"false".equalsIgnoreCase(envOrDefault("OPENLINEAGE_ENABLED", "true"));
+		this.enabled = !"false".equalsIgnoreCase(envOrDefault("OPENLINEAGE_ENABLED", "false"));
 		this.runId = UUID.randomUUID().toString();
 	}
 

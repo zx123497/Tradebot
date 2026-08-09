@@ -30,7 +30,7 @@ class OpenLineageEmitter:
             "/"
         )
         if enabled is None:
-            enabled = os.getenv("OPENLINEAGE_ENABLED", "true").lower() in (
+            enabled = os.getenv("OPENLINEAGE_ENABLED", "false").lower() in (
                 "1",
                 "true",
                 "yes",
