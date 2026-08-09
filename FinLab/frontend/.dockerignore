@@ -1,0 +1,9 @@
+node_modules
+dist
+.git
+.gitignore
+*.md
+.prettierignore
+.prettierrc
+eslint.config.js
+components.json
