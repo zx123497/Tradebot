@@ -1,6 +1,6 @@
 # Full stack (infra + Flink + producer + consumer)
 up:
-	cd FinData && docker compose up -d --build
+	cd FinData && docker compose up -d --build --remove-orphans
 
 # Infra only (Kafka, ClickHouse, Flink) — no producer/consumer
 infra:
