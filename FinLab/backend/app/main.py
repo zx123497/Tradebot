@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import clickhouse
 from app.config import settings
-from app.routes import bars, health
+from app.routes import bars, health, trades
 
 
 @asynccontextmanager
@@ -32,6 +32,7 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(bars.router)
+app.include_router(trades.router)
 
 
 @app.get("/")

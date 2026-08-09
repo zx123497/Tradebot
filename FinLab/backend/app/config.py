@@ -14,8 +14,10 @@ class Settings(BaseSettings):
     clickhouse_password: str = "findata"
     clickhouse_database: str = "findata"
     clickhouse_table: str = "bars_1m"
+    clickhouse_trades_table: str = "trades"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     sse_poll_interval_sec: float = 5.0
+    sse_trades_poll_interval_sec: float = 1.0
 
     @property
     def cors_origin_list(self) -> list[str]:

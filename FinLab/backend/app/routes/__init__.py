@@ -1,3 +1,3 @@
-from app.routes import bars, health
+from app.routes import bars, health, trades
 
-__all__ = ["bars", "health"]
+__all__ = ["bars", "health", "trades"]

@@ -15,6 +15,7 @@ class Bar(BaseModel):
     volume: float
     trade_count: int
     vwap: float
+    notional: float | None = None
 
 
 class SymbolSummary(BaseModel):
@@ -39,4 +40,16 @@ class HealthResponse(BaseModel):
 
 class BarsResponse(BaseModel):
     symbol: str
+    bar_type: str
     bars: list[Bar] = Field(default_factory=list)
+
+
+class TradeTick(BaseModel):
+    symbol: str
+    price: float
+    volume: float
+    timestamp: datetime
+
+
+class TradesResponse(BaseModel):
+    trades: list[TradeTick] = Field(default_factory=list)

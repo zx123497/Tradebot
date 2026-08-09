@@ -200,12 +200,12 @@ cd FinData && docker compose --profile test up -d mock-finnhub
 
 ## FinLab dashboard
 
-Realtime watchlist + candlestick UI over ClickHouse `bars_1m`.
+Realtime watchlist + multi-bar candlesticks (`1m` / `5m` / `volume` / `dollar`) and a live trade tape over ClickHouse.
 
 ```bash
-# 1. Pipeline data available
+# 1. Pipeline data available (all bar consumers)
 make infra
-cd FinData && docker compose up -d consumer
+cd FinData && docker compose up -d consumer consumer-bars-5m consumer-bars-volume consumer-bars-dollar trades-consumer
 
 # 2. API (http://localhost:8000/docs)
 make lab-api
@@ -214,7 +214,7 @@ make lab-api
 make lab-ui
 ```
 
-API routes: `GET /api/health`, `/api/symbols`, `/api/bars`, `/api/bars/stream` (SSE).
+API routes: `GET /api/health`, `/api/symbols?bar_type=…`, `/api/bars?bar_type=…`, `/api/bars/stream`, `/api/trades`, `/api/trades/stream` (SSE).
 Copy `FinLab/backend/.env.example` if you need non-default ClickHouse settings.
 
 ## Notes
