@@ -12,8 +12,8 @@ Runs `fastapi dev app/main.py` inside `FinLab/backend`.
 ### Docker
 
 ```bash
-# from repo root (FinData stack must be up for ClickHouse)
-docker build -f FinLab/backend/Dockerfile -t finlab-api .
+# from FinLab/ (FinData stack must be up for ClickHouse)
+docker build -t finlab-api ./backend
 make lab-up            # API :8000 + UI :3000
 ```
 
