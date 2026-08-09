@@ -68,6 +68,7 @@ def main() -> None:
         password=settings.clickhouse_password,
         database=settings.clickhouse_database,
         table=settings.clickhouse_table,
+        include_notional=settings.include_notional,
     )
     consumer = TradeKafkaConsumer(
         bootstrap_servers=settings.kafka_bootstrap_servers,

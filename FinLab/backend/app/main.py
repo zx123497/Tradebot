@@ -1,10 +1,26 @@
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import clickhouse
 from app.config import settings
 from app.routes import bars, health
 
-app = FastAPI(title="FinLab API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    await clickhouse.connect()
+    try:
+        yield
+    finally:
+        await clickhouse.close()
+
+
+app = FastAPI(title="FinLab API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -19,5 +35,5 @@ app.include_router(bars.router)
 
 
 @app.get("/")
-def root() -> dict[str, str]:
+async def root() -> dict[str, str]:
     return {"service": "finlab-api", "docs": "/docs"}

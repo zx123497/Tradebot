@@ -6,17 +6,19 @@ Real-time S&P 500 market data pipeline: stream live trades from Finnhub, aggrega
 Finnhub WebSocket
        │
        ▼
- Python producer ──► Kafka: sp500.trades
+ Python producer ──► Kafka: sp500.trades ──► ClickHouse: trades (TTL 30d)
                            │
                            ▼
                    Flink DataStreamJob
-                   (1-minute OHLCV + VWAP)
+                   ├── 1m / 5m time bars
+                   ├── volume bars (~50k shares)
+                   └── dollar bars (~$5M notional)
                            │
                            ▼
-                   Kafka: sp500.bars.1m
+                   Kafka: sp500.bars.{1m,5m,volume,dollar}
                            │
                            ▼
- Python consumer ──► ClickHouse: findata.bars_1m
+ Python consumers ──► ClickHouse: bars_* (no TTL)
 ```
 
 By default the producer filters to the **Information Technology** GICS sector.
@@ -217,7 +219,9 @@ Copy `FinLab/backend/.env.example` if you need non-default ClickHouse settings.
 
 ## Notes
 
+- **Schema changes:** `findata.trades` / `bars_*` are created from `FinData/clickhouse/init.sql` only on first ClickHouse boot. After changing the schema, recreate the volume: `cd FinData && docker compose down -v && docker compose up -d`.
 - Finnhub free tier limits concurrent WebSocket subscriptions; use `SYMBOL_LIMIT` if you hit rate limits.
-- Raw trades stay on Kafka; ClickHouse stores aggregated bars only.
+- Raw ticks land on Kafka + ClickHouse `trades` (30-day TTL). Aggregated bars have **no** TTL.
+- Flink volume-bar threshold defaults to **50,000** shares; dollar-bar threshold to **$5,000,000** notional (`FLINK_VOLUME_BAR_THRESHOLD` / `FLINK_DOLLAR_BAR_THRESHOLD`).
 - Inside Docker, Flink connects to Kafka at `kafka:9092`. From the host, use `localhost:9094`.
 - OpenLineage emitters remain in the codebase but are **disabled** (`OPENLINEAGE_ENABLED=false`) unless you run your own Marquez backend.

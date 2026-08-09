@@ -13,7 +13,7 @@ import java.time.format.DateTimeFormatter;
 /**
  * Emits JSON matching FinData consumer / ClickHouse bar schema:
  * symbol, window_start, open_price, high_price, low_price, close_price,
- * volume, trade_count, vwap
+ * volume, trade_count, vwap, notional
  */
 public class BarSerializationSchema implements SerializationSchema<BarOutput> {
 
@@ -44,6 +44,7 @@ public class BarSerializationSchema implements SerializationSchema<BarOutput> {
 		node.put("volume", bar.volume);
 		node.put("trade_count", bar.tradeCount);
 		node.put("vwap", bar.vwap);
+		node.put("notional", bar.notional);
 		return node.toString().getBytes(StandardCharsets.UTF_8);
 	}
 }

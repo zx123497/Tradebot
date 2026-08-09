@@ -7,10 +7,10 @@ router = APIRouter(prefix="/api", tags=["health"])
 
 
 @router.get("/health", response_model=HealthResponse)
-def health() -> HealthResponse:
+async def health() -> HealthResponse:
     ok = False
     try:
-        ok = ping()
+        ok = await ping()
     except Exception:  # noqa: BLE001
         ok = False
     return HealthResponse(

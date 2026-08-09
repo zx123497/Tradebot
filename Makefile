@@ -15,6 +15,9 @@ producer:
 consumer:
 	uv run python FinData/src/consumer.py
 
+trades-consumer:
+	uv run python FinData/src/trades_consumer.py
+
 logs-producer:
 	cd FinData && docker compose logs -f producer
 

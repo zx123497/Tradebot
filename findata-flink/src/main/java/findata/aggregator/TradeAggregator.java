@@ -14,40 +14,25 @@ public class TradeAggregator implements AggregateFunction<Trade, BarAccumulator,
 
 	@Override
 	public BarAccumulator add(Trade value, BarAccumulator acc) {
-		acc.symbol = value.symbol;
-		acc.volume += value.volume;
-		acc.tradeCount += 1;
-		acc.cumulativePriceVolume += value.price * value.volume;
-		if (acc.open < 0) {
-			acc.open = value.price;
-		}
-		if (value.price > acc.high) {
-			acc.high = value.price;
-		}
-		if (value.price < acc.low) {
-			acc.low = value.price;
-		}
-		acc.close = value.price;
+		acc.add(value);
 		return acc;
 	}
 
 	@Override
 	public BarOutput getResult(BarAccumulator acc) {
-		BarOutput out = new BarOutput();
-		out.symbol = acc.symbol;
-		out.open = acc.open;
-		out.high = acc.high;
-		out.low = acc.low;
-		out.close = acc.close;
-		out.volume = acc.volume;
-		out.tradeCount = acc.tradeCount;
-		out.vwap = acc.volume == 0 ? 0.0 : acc.cumulativePriceVolume / acc.volume;
-		return out;
+		return acc.toBar();
 	}
 
 	@Override
 	public BarAccumulator merge(BarAccumulator a, BarAccumulator b) {
 		if (a.open < 0) {
+			return b;
+		}
+		if (b.open < 0) {
+			return a;
+		}
+		if (a.firstTimestamp < 0 || (b.firstTimestamp >= 0 && b.firstTimestamp < a.firstTimestamp)) {
+			a.firstTimestamp = b.firstTimestamp;
 			a.open = b.open;
 		}
 		a.volume += b.volume;

@@ -19,7 +19,11 @@ class Settings:
     kafka_bootstrap_servers: str
     kafka_topic: str
     kafka_bars_topic: str
+    kafka_bars_5m_topic: str
+    kafka_bars_volume_topic: str
+    kafka_bars_dollar_topic: str
     kafka_consumer_group: str
+    kafka_trades_consumer_group: str
     gics_sector: str
     subscribe_symbols: str | None
     symbol_limit: int | None
@@ -29,6 +33,8 @@ class Settings:
     clickhouse_password: str
     clickhouse_database: str
     clickhouse_table: str
+    clickhouse_trades_table: str
+    include_notional: bool
     mock_finnhub_host: str
     mock_finnhub_port: int
     mock_replay_delay_sec: float
@@ -61,8 +67,18 @@ def load_settings(env_file: Path | None = None) -> Settings:
         ),
         kafka_topic=os.getenv("KAFKA_TOPIC", "sp500.trades"),
         kafka_bars_topic=os.getenv("KAFKA_BARS_TOPIC", "sp500.bars.1m"),
+        kafka_bars_5m_topic=os.getenv("KAFKA_BARS_5M_TOPIC", "sp500.bars.5m"),
+        kafka_bars_volume_topic=os.getenv(
+            "KAFKA_BARS_VOLUME_TOPIC", "sp500.bars.volume"
+        ),
+        kafka_bars_dollar_topic=os.getenv(
+            "KAFKA_BARS_DOLLAR_TOPIC", "sp500.bars.dollar"
+        ),
         kafka_consumer_group=os.getenv(
             "KAFKA_CONSUMER_GROUP", "sp500-bars-consumer"
+        ),
+        kafka_trades_consumer_group=os.getenv(
+            "KAFKA_TRADES_CONSUMER_GROUP", "sp500-trades-consumer"
         ),
         gics_sector=os.getenv("GICS_SECTOR", "Information Technology"),
         subscribe_symbols=os.getenv("SUBSCRIBE_SYMBOLS"),
@@ -73,6 +89,9 @@ def load_settings(env_file: Path | None = None) -> Settings:
         clickhouse_password=os.getenv("CLICKHOUSE_PASSWORD", "findata"),
         clickhouse_database=os.getenv("CLICKHOUSE_DATABASE", "findata"),
         clickhouse_table=os.getenv("CLICKHOUSE_TABLE", "bars_1m"),
+        clickhouse_trades_table=os.getenv("CLICKHOUSE_TRADES_TABLE", "trades"),
+        include_notional=os.getenv("INCLUDE_NOTIONAL", "false").lower()
+        in ("1", "true", "yes"),
         mock_finnhub_host=os.getenv("MOCK_FINNHUB_HOST", "0.0.0.0"),
         mock_finnhub_port=int(os.getenv("MOCK_FINNHUB_PORT", "8765")),
         mock_replay_delay_sec=float(

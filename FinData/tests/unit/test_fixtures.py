@@ -32,7 +32,12 @@ def test_unique_window_start_ms_increases_with_time():
 def test_build_fixture_rows_includes_watermark_tick():
     rows = build_fixture_rows(1_000_000)
     assert len(rows) == len(FIXTURE_TICKS) + 1
-    assert rows[-1][3] == 1_000_000 + WATERMARK_ADVANCE_TICK[0]
+    from datetime import datetime, timezone
+
+    expected_ts = datetime.fromtimestamp(
+        (1_000_000 + WATERMARK_ADVANCE_TICK[0]) / 1000, tz=timezone.utc
+    )
+    assert rows[-1][3] == expected_ts
 
 
 def test_seed_trades_truncates_and_inserts():

@@ -6,27 +6,18 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Protocol
 
-# One symbol, one completed 1-minute window of known OHLCV.
 FIXTURE_SYMBOL = "AAPL"
-# (offset_ms_within_minute, price, volume)
 FIXTURE_TICKS = [
     (0, 100.0, 10.0),
     (10_000, 105.0, 20.0),
     (20_000, 99.0, 5.0),
     (50_000, 102.0, 15.0),
 ]
-# Extra tick in the *next* minute so Flink's event-time watermark advances.
 WATERMARK_ADVANCE_TICK = (70_000, 102.0, 1.0)
 
-TRADE_COLUMN_NAMES = [
-    "symbol",
-    "price",
-    "volume",
-    "timestamp_ms",
-    "trade_time",
-    "received_at",
-    "conditions",
-]
+TRADE_COLUMN_NAMES = ["symbol", "price", "volume", "timestamp"]
+
+BAR_TABLES = ("bars_1m", "bars_5m", "bars_volume", "bars_dollar")
 
 
 class FixtureClient(Protocol):
@@ -57,10 +48,6 @@ def expected_bar() -> dict:
 
 
 def unique_window_start_ms(now_s: float | None = None) -> int:
-    """Unique 1m window start always ahead of prior Flink watermarks.
-
-    Spaces windows by 2 minutes of event time per wall-clock second.
-    """
     return int(now_s if now_s is not None else time.time()) * 120_000
 
 
@@ -69,22 +56,12 @@ def build_fixture_rows(
     *,
     received_at: datetime | None = None,
 ) -> list[list]:
-    now = received_at or datetime.now(timezone.utc)
+    _ = received_at
     rows = []
     for offset_ms, price, volume in [*FIXTURE_TICKS, WATERMARK_ADVANCE_TICK]:
         ts_ms = window_start_ms + offset_ms
         trade_time = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc)
-        rows.append(
-            [
-                FIXTURE_SYMBOL,
-                price,
-                volume,
-                ts_ms,
-                trade_time,
-                now,
-                [],
-            ]
-        )
+        rows.append([FIXTURE_SYMBOL, price, volume, trade_time])
     return rows
 
 
@@ -101,7 +78,8 @@ def seed_trades(
 
     if clear_existing:
         client.command("TRUNCATE TABLE IF EXISTS trades")
-        client.command("TRUNCATE TABLE IF EXISTS bars_1m")
+        for table in BAR_TABLES:
+            client.command(f"TRUNCATE TABLE IF EXISTS {table}")
 
     rows = build_fixture_rows(window_start_ms)
     client.insert("trades", rows, column_names=TRADE_COLUMN_NAMES)

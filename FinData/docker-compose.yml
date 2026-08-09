@@ -34,6 +34,9 @@ services:
         done
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic sp500.trades --partitions 1 --replication-factor 1
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic sp500.bars.1m --partitions 1 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic sp500.bars.5m --partitions 1 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic sp500.bars.volume --partitions 1 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic sp500.bars.dollar --partitions 1 --replication-factor 1
         echo "Kafka topics ready:"
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
 
@@ -69,10 +72,16 @@ services:
     ports:
       - "8081:8081"
     command: jobmanager
-    environment:
+    environment: &flink_bar_env
       FLINK_KAFKA_BOOTSTRAP: kafka:9092
       KAFKA_TOPIC: sp500.trades
       KAFKA_BARS_TOPIC: sp500.bars.1m
+      KAFKA_BARS_1M_TOPIC: sp500.bars.1m
+      KAFKA_BARS_5M_TOPIC: sp500.bars.5m
+      KAFKA_BARS_VOLUME_TOPIC: sp500.bars.volume
+      KAFKA_BARS_DOLLAR_TOPIC: sp500.bars.dollar
+      FLINK_VOLUME_BAR_THRESHOLD: "50000"
+      FLINK_DOLLAR_BAR_THRESHOLD: "5000000"
       OPENLINEAGE_ENABLED: "false"
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: jobmanager
@@ -86,13 +95,10 @@ services:
       - jobmanager
     command: taskmanager
     environment:
-      FLINK_KAFKA_BOOTSTRAP: kafka:9092
-      KAFKA_TOPIC: sp500.trades
-      KAFKA_BARS_TOPIC: sp500.bars.1m
-      OPENLINEAGE_ENABLED: "false"
+      <<: *flink_bar_env
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: jobmanager
-        taskmanager.numberOfTaskSlots: 4
+        taskmanager.numberOfTaskSlots: 8
 
   flink-job-submitter:
     build:
@@ -106,11 +112,8 @@ services:
       - kafka-init
     command: /opt/flink/submit-job.sh
     environment:
-      FLINK_KAFKA_BOOTSTRAP: kafka:9092
-      KAFKA_TOPIC: sp500.trades
-      KAFKA_BARS_TOPIC: sp500.bars.1m
-      FLINK_KAFKA_GROUP: flink-bars-1m
-      OPENLINEAGE_ENABLED: "false"
+      <<: *flink_bar_env
+      FLINK_KAFKA_GROUP: flink-bars-multi
     restart: on-failure
 
   producer:
@@ -129,6 +132,26 @@ services:
     command: ["uv", "run", "--no-sync", "python", "main.py"]
     restart: unless-stopped
 
+  trades-consumer:
+    build:
+      context: ..
+      dockerfile: FinData/Dockerfile
+    image: findata-python
+    env_file:
+      - .env
+    environment: &ch_kafka_env
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      OPENLINEAGE_ENABLED: "false"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
+    command: ["uv", "run", "--no-sync", "python", "trades_consumer.py"]
+    restart: unless-stopped
+
   consumer:
     build:
       context: ..
@@ -137,10 +160,80 @@ services:
     env_file:
       - .env
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      CLICKHOUSE_HOST: clickhouse
-      CLICKHOUSE_PORT: 8123
-      OPENLINEAGE_ENABLED: "false"
+      <<: *ch_kafka_env
+      KAFKA_BARS_TOPIC: sp500.bars.1m
+      CLICKHOUSE_TABLE: bars_1m
+      KAFKA_CONSUMER_GROUP: sp500-bars-1m-consumer
+      INCLUDE_NOTIONAL: "false"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
+      flink-job-submitter:
+        condition: service_started
+    command: ["uv", "run", "--no-sync", "python", "consumer.py"]
+    restart: unless-stopped
+
+  consumer-bars-5m:
+    build:
+      context: ..
+      dockerfile: FinData/Dockerfile
+    image: findata-python
+    env_file:
+      - .env
+    environment:
+      <<: *ch_kafka_env
+      KAFKA_BARS_TOPIC: sp500.bars.5m
+      CLICKHOUSE_TABLE: bars_5m
+      KAFKA_CONSUMER_GROUP: sp500-bars-5m-consumer
+      INCLUDE_NOTIONAL: "false"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
+      flink-job-submitter:
+        condition: service_started
+    command: ["uv", "run", "--no-sync", "python", "consumer.py"]
+    restart: unless-stopped
+
+  consumer-bars-volume:
+    build:
+      context: ..
+      dockerfile: FinData/Dockerfile
+    image: findata-python
+    env_file:
+      - .env
+    environment:
+      <<: *ch_kafka_env
+      KAFKA_BARS_TOPIC: sp500.bars.volume
+      CLICKHOUSE_TABLE: bars_volume
+      KAFKA_CONSUMER_GROUP: sp500-bars-volume-consumer
+      INCLUDE_NOTIONAL: "true"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
+      flink-job-submitter:
+        condition: service_started
+    command: ["uv", "run", "--no-sync", "python", "consumer.py"]
+    restart: unless-stopped
+
+  consumer-bars-dollar:
+    build:
+      context: ..
+      dockerfile: FinData/Dockerfile
+    image: findata-python
+    env_file:
+      - .env
+    environment:
+      <<: *ch_kafka_env
+      KAFKA_BARS_TOPIC: sp500.bars.dollar
+      CLICKHOUSE_TABLE: bars_dollar
+      KAFKA_CONSUMER_GROUP: sp500-bars-dollar-consumer
+      INCLUDE_NOTIONAL: "true"
     depends_on:
       kafka-init:
         condition: service_completed_successfully

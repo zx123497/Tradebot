@@ -15,10 +15,17 @@ from app.schemas import Bar, BarsResponse, SymbolSummary
 router = APIRouter(prefix="/api", tags=["bars"])
 
 
+def _as_utc(value: datetime) -> datetime:
+    """Normalize ClickHouse/query datetimes to aware UTC for safe comparisons."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def _row_to_bar(row: tuple) -> Bar:
     return Bar(
         symbol=row[0],
-        window_start=row[1],
+        window_start=_as_utc(row[1]),
         open=float(row[2]),
         high=float(row[3]),
         low=float(row[4]),
@@ -30,9 +37,9 @@ def _row_to_bar(row: tuple) -> Bar:
 
 
 @router.get("/symbols", response_model=list[SymbolSummary])
-def list_symbols() -> list[SymbolSummary]:
-    client = get_client()
-    result = client.query(
+async def list_symbols() -> list[SymbolSummary]:
+    client = await get_client()
+    result = await client.query(
         f"""
         SELECT
             symbol,
@@ -84,7 +91,7 @@ def list_symbols() -> list[SymbolSummary]:
         summaries.append(
             SymbolSummary(
                 symbol=row[0],
-                window_start=row[1],
+                window_start=_as_utc(row[1]),
                 open=float(row[2]),
                 high=float(row[3]),
                 low=float(row[4]),
@@ -101,13 +108,13 @@ def list_symbols() -> list[SymbolSummary]:
 
 
 @router.get("/bars", response_model=BarsResponse)
-def get_bars(
+async def get_bars(
     symbol: str = Query(..., min_length=1),
     from_ts: datetime | None = Query(None, alias="from"),
     to_ts: datetime | None = Query(None, alias="to"),
     limit: int = Query(240, ge=1, le=5000),
 ) -> BarsResponse:
-    client = get_client()
+    client = await get_client()
     if from_ts is None:
         from_ts = datetime.now(timezone.utc) - timedelta(hours=4)
 
@@ -120,7 +127,7 @@ def get_bars(
         where.append("window_start <= {to_ts:DateTime64(3, 'UTC')}")
         params["to_ts"] = to_ts
 
-    result = client.query(
+    result = await client.query(
         f"""
         SELECT symbol, window_start, open, high, low, close, volume, trade_count, vwap
         FROM {settings.clickhouse_table}
@@ -136,17 +143,17 @@ def get_bars(
     return BarsResponse(symbol=symbol, bars=bars)
 
 
-def _fetch_bars_since(
+async def _fetch_bars_since(
     symbols: list[str] | None,
     since: datetime,
 ) -> list[Bar]:
-    client = get_client()
+    client = await get_client()
     params: dict = {"since": since}
     where = ["window_start > {since:DateTime64(3, 'UTC')}"]
     if symbols:
         where.append("symbol IN {symbols:Array(String)}")
         params["symbols"] = symbols
-    result = client.query(
+    result = await client.query(
         f"""
         SELECT symbol, window_start, open, high, low, close, volume, trade_count, vwap
         FROM {settings.clickhouse_table}
@@ -164,10 +171,11 @@ async def _bar_event_stream(symbols: list[str] | None) -> AsyncIterator[str]:
     yield f"event: hello\ndata: {json.dumps({'status': 'connected'})}\n\n"
     while True:
         try:
-            bars = await asyncio.to_thread(_fetch_bars_since, symbols, last_seen)
+            bars = await _fetch_bars_since(symbols, last_seen)
             for bar in bars:
-                if bar.window_start > last_seen:
-                    last_seen = bar.window_start
+                window_start = _as_utc(bar.window_start)
+                if window_start > last_seen:
+                    last_seen = window_start
                 payload = bar.model_dump(mode="json")
                 yield f"event: bar\ndata: {json.dumps(payload)}\n\n"
         except Exception as exc:  # noqa: BLE001 — keep SSE alive

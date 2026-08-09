@@ -14,4 +14,6 @@ public class BarOutput implements Serializable {
 	public double volume;
 	public long tradeCount;
 	public double vwap;
+	/** Cumulative price*volume for the bar (useful for dollar/volume bars). */
+	public double notional;
 }
