@@ -15,7 +15,10 @@ class Settings(BaseSettings):
     clickhouse_database: str = "findata"
     clickhouse_table: str = "bars_1m"
     clickhouse_trades_table: str = "trades"
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    cors_origins: str = (
+        "http://localhost:5173,http://127.0.0.1:5173,"
+        "http://localhost:3000,http://127.0.0.1:3000"
+    )
     sse_poll_interval_sec: float = 5.0
     sse_trades_poll_interval_sec: float = 1.0
 

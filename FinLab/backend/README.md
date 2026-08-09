@@ -9,6 +9,14 @@ make lab-api           # from repo root → http://localhost:8000/docs
 
 Runs `fastapi dev app/main.py` inside `FinLab/backend`.
 
+### Docker
+
+```bash
+# from repo root (FinData stack must be up for ClickHouse)
+docker build -f FinLab/backend/Dockerfile -t finlab-api .
+make lab-up            # API :8000 + UI :3000
+```
+
 Endpoints:
 
 - `GET /api/health`

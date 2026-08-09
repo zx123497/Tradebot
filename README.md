@@ -207,12 +207,15 @@ Realtime watchlist + multi-bar candlesticks (`1m` / `5m` / `volume` / `dollar`) 
 make infra
 cd FinData && docker compose up -d consumer consumer-bars-5m consumer-bars-volume consumer-bars-dollar trades-consumer
 
-# 2. API (http://localhost:8000/docs)
+# 2a. Local (host) — API :8000, Vite :5173
 make lab-api
-
-# 3. UI (http://localhost:5173) — proxies /api → :8000
 make lab-ui
+
+# 2b. Docker — API :8000, nginx UI :3000 (joins findata_default for ClickHouse)
+make lab-up
 ```
+
+Dockerfiles: `FinLab/backend/Dockerfile`, `FinLab/frontend/Dockerfile` (compose: `FinLab/docker-compose.yml`).
 
 API routes: `GET /api/health`, `/api/symbols?bar_type=…`, `/api/bars?bar_type=…`, `/api/bars/stream`, `/api/trades`, `/api/trades/stream` (SSE).
 Copy `FinLab/backend/.env.example` if you need non-default ClickHouse settings.

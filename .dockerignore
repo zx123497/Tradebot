@@ -1,0 +1,14 @@
+.git
+.venv
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.env
+**/node_modules
+**/dist
+**/build
+**/target
+**/.idea
+**/.DS_Store
+FinLab/frontend/.git
+agent-transcripts
