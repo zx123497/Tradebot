@@ -20,7 +20,12 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await clickhouse.close()
 
 
-app = FastAPI(title="FinLab API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(
+    title="FinLab API",
+    version="0.1.0",
+    lifespan=lifespan,
+    swagger_ui_parameters={"persistAuthorization": True},
+)
 
 app.add_middleware(
     CORSMiddleware,

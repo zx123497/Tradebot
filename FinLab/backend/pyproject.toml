@@ -5,9 +5,11 @@ description = "FinLab API — ClickHouse-backed market data for the trading UI"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "aiohttp>=3.9.0",
     "clickhouse-connect[async]>=0.8.18",
     "fastapi[standard]>=0.141.1",
     "pydantic-settings>=2.0.0",
+    "pyjwt[crypto]>=2.8.0",
     "python-dotenv>=1.1.1",
 ]
 

@@ -22,9 +22,24 @@ class Settings(BaseSettings):
     sse_poll_interval_sec: float = 5.0
     sse_trades_poll_interval_sec: float = 1.0
 
+    # Cloudflare Access (optional — when unset, JWT checks are skipped for local/dev)
+    policy_aud: str | None = None
+    team_domain: str | None = None
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def cf_access_enabled(self) -> bool:
+        return bool(self.policy_aud and self.team_domain)
+
+    @property
+    def cf_certs_url(self) -> str | None:
+        if not self.team_domain:
+            return None
+        domain = self.team_domain.rstrip("/")
+        return f"{domain}/cdn-cgi/access/certs"
 
 
 settings = Settings()

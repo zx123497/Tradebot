@@ -5,15 +5,20 @@ import json
 from datetime import datetime, timedelta, timezone
 from typing import AsyncIterator
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Security
 from fastapi.responses import StreamingResponse
 
+from app.auth import require_cf_access
 from app.bar_types import VALID_BAR_TYPES, as_utc, resolve_bar_table
 from app.clickhouse import get_client
 from app.config import settings
 from app.schemas import Bar, BarsResponse, SymbolSummary
 
-router = APIRouter(prefix="/api", tags=["bars"])
+router = APIRouter(
+    prefix="/api",
+    tags=["bars"],
+    dependencies=[Security(require_cf_access)],
+)
 
 
 def _row_to_bar(row: tuple) -> Bar:
