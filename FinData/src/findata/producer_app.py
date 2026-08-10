@@ -6,6 +6,7 @@ import json
 from collections.abc import Callable, Sequence
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlsplit
 
 import websocket
 
@@ -106,7 +107,12 @@ def run_producer(
         on_error=on_error,
         on_close=on_close,
     )
-    print(f"Connecting to {ws_url}")
+    parsed_ws_url = urlsplit(ws_url)
+    host = parsed_ws_url.hostname or ""
+    port = f":{parsed_ws_url.port}" if parsed_ws_url.port is not None else ""
+    path = parsed_ws_url.path or ""
+    safe_ws_url = f"{parsed_ws_url.scheme}://{host}{port}{path}"
+    print(f"Connecting to {safe_ws_url}")
     if run_forever:
         ws.run_forever()
     return ws
