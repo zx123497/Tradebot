@@ -44,19 +44,26 @@ export function BarStats({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-      {stats.map((s) => (
-        <Card key={String(s.key)} size="sm" className="gap-2 py-3">
-          <CardHeader className="px-4 pb-0">
-            <CardTitle className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              {s.label}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 font-heading text-lg tabular-nums">
-            {bar ? fmt(bar[s.key] as number, s.digits ?? 2) : "—"}
-          </CardContent>
-        </Card>
-      ))}
+    <div className="space-y-2">
+      {bar?.is_partial && (
+        <p className="text-xs text-muted-foreground">
+          Forming candle (updates live until the Flink window closes)
+        </p>
+      )}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+        {stats.map((s) => (
+          <Card key={String(s.key)} size="sm" className="gap-2 py-3">
+            <CardHeader className="px-4 pb-0">
+              <CardTitle className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                {s.label}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 font-heading text-lg tabular-nums">
+              {bar ? fmt(bar[s.key] as number, s.digits ?? 2) : "—"}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   )
 }

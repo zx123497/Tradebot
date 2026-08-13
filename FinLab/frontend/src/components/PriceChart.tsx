@@ -23,6 +23,12 @@ function toCandle(bar: Bar): CandlestickData<Time> {
   }
 }
 
+function barsSignature(bars: Bar[]): string {
+  if (!bars.length) return ""
+  const last = bars[bars.length - 1]
+  return `${bars.length}|${last.window_start}|${last.open}|${last.high}|${last.low}|${last.close}|${last.is_partial ? 1 : 0}`
+}
+
 export function PriceChart({
   bars,
   symbol,
@@ -33,6 +39,9 @@ export function PriceChart({
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null)
+  const prevSigRef = useRef<string>("")
+  const prevLenRef = useRef(0)
+  const prevLastStartRef = useRef<string | null>(null)
   const { theme } = useTheme()
 
   useEffect(() => {
@@ -77,6 +86,9 @@ export function PriceChart({
 
     chartRef.current = chart
     seriesRef.current = series
+    prevSigRef.current = ""
+    prevLenRef.current = 0
+    prevLastStartRef.current = null
 
     return () => {
       chart.remove()
@@ -89,9 +101,32 @@ export function PriceChart({
     const series = seriesRef.current
     const chart = chartRef.current
     if (!series || !chart) return
-    const data = bars.map(toCandle)
-    series.setData(data)
-    if (data.length) chart.timeScale().fitContent()
+
+    const sig = barsSignature(bars)
+    if (sig === prevSigRef.current) return
+
+    const last = bars.length ? bars[bars.length - 1] : null
+    const sameWindow =
+      last != null &&
+      prevLastStartRef.current === last.window_start &&
+      bars.length === prevLenRef.current
+    const appended =
+      last != null &&
+      prevLenRef.current > 0 &&
+      bars.length === prevLenRef.current + 1
+
+    if ((sameWindow || appended) && last) {
+      // Forming tick or new window candle — update/append without refitting.
+      series.update(toCandle(last))
+    } else {
+      const data = bars.map(toCandle)
+      series.setData(data)
+      if (data.length) chart.timeScale().fitContent()
+    }
+
+    prevSigRef.current = sig
+    prevLenRef.current = bars.length
+    prevLastStartRef.current = last?.window_start ?? null
   }, [bars, symbol])
 
   return (

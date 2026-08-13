@@ -39,8 +39,8 @@ where = ["FinData/src"]
 include = ["findata*"]
 
 [tool.pytest.ini_options]
-testpaths = ["FinData/tests"]
-pythonpath = ["FinData/src", "FinData/tests"]
+testpaths = ["FinData/tests", "FinLab/backend/tests"]
+pythonpath = ["FinData/src", "FinData/tests", "FinLab/backend"]
 asyncio_mode = "auto"
 markers = [
     "integration: end-to-end tests that require Docker infra (Kafka, Flink, ClickHouse)",

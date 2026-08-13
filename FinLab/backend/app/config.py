@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     )
     sse_poll_interval_sec: float = 5.0
     sse_trades_poll_interval_sec: float = 1.0
+    # Forming-bar SSE (open 1m/5m window from trades)
+    sse_live_poll_interval_sec: float = 1.0
 
     # Cloudflare Access (optional — when unset, JWT checks are skipped for local/dev)
     policy_aud: str | None = None
