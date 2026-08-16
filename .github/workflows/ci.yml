@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: uv sync --extra dev
+      - name: Unit tests
+        run: uv run pytest FinData/tests/unit -q
+
+  # Pipeline jobs that need live credentials should inject GitHub Actions
+  # secrets as env vars (never write them to the repo).
+  # Required repository secrets:
+  #   FINNHUB_API_KEY
+  #   CLICKHOUSE_PASSWORD   (optional; local default is findata)
+  #   POLICY_AUD            (Cloudflare Access audience)
+  #   TEAM_DOMAIN           (Cloudflare Access team URL)
+  #   DOCKERHUB_USERNAME    (Actions variable or secret; Docker Hub namespace)
+  #   DOCKERHUB_TOKEN       (Docker Hub PAT)
+  compose-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate FinData compose
+        env:
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_PASSWORD }}
+        run: docker compose -f FinData/docker-compose.yml config --quiet
+      - name: Validate FinLab compose
+        env:
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_PASSWORD }}
+        run: docker compose -f FinLab/docker-compose.yml config --quiet
+      - name: Validate FinData prod overlay
+        env:
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_PASSWORD }}
+          IMAGE_TAG: latest
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME || 'ci' }}
+        run: docker compose -f FinData/docker-compose.yml -f FinData/docker-compose.prod.yml config --quiet
+      - name: Validate FinLab prod overlay
+        env:
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_PASSWORD }}
+          IMAGE_TAG: latest
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME || 'ci' }}
+        run: docker compose -f FinLab/docker-compose.yml -f FinLab/docker-compose.prod.yml config --quiet
