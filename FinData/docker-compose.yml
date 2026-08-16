@@ -1,3 +1,9 @@
+# Secrets (FINNHUB_API_KEY, CLICKHOUSE_PASSWORD) are injected from the host
+# environment or a gitignored .env. CI uses GitHub Actions secrets — never commit real values.
+x-optional-env-file: &optional_env_file
+  - path: .env
+    required: false
+
 services:
   kafka:
     image: apache/kafka:3.8.0
@@ -51,14 +57,24 @@ services:
         hard: 262144
     environment:
       CLICKHOUSE_DB: findata
-      CLICKHOUSE_USER: findata
-      CLICKHOUSE_PASSWORD: findata
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-findata}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-findata}
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
     volumes:
       - clickhouse_data:/var/lib/clickhouse/
       - ./clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD", "clickhouse-client", "--user", "findata", "--password", "findata", "--query", "SELECT 1"]
+      test:
+        [
+          "CMD",
+          "clickhouse-client",
+          "--user",
+          "${CLICKHOUSE_USER:-findata}",
+          "--password",
+          "${CLICKHOUSE_PASSWORD:-findata}",
+          "--query",
+          "SELECT 1",
+        ]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -121,11 +137,11 @@ services:
       context: ..
       dockerfile: FinData/Dockerfile
     image: findata-python
-    env_file:
-      - .env
+    env_file: *optional_env_file
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       OPENLINEAGE_ENABLED: "false"
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
     depends_on:
       kafka-init:
         condition: service_completed_successfully
@@ -137,12 +153,13 @@ services:
       context: ..
       dockerfile: FinData/Dockerfile
     image: findata-python
-    env_file:
-      - .env
+    env_file: *optional_env_file
     environment: &ch_kafka_env
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: 8123
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-findata}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-findata}
       OPENLINEAGE_ENABLED: "false"
     depends_on:
       kafka-init:
@@ -157,8 +174,7 @@ services:
       context: ..
       dockerfile: FinData/Dockerfile
     image: findata-python
-    env_file:
-      - .env
+    env_file: *optional_env_file
     environment:
       <<: *ch_kafka_env
       KAFKA_BARS_TOPIC: sp500.bars.1m
@@ -180,8 +196,7 @@ services:
       context: ..
       dockerfile: FinData/Dockerfile
     image: findata-python
-    env_file:
-      - .env
+    env_file: *optional_env_file
     environment:
       <<: *ch_kafka_env
       KAFKA_BARS_TOPIC: sp500.bars.5m
@@ -203,8 +218,7 @@ services:
       context: ..
       dockerfile: FinData/Dockerfile
     image: findata-python
-    env_file:
-      - .env
+    env_file: *optional_env_file
     environment:
       <<: *ch_kafka_env
       KAFKA_BARS_TOPIC: sp500.bars.volume
@@ -226,8 +240,7 @@ services:
       context: ..
       dockerfile: FinData/Dockerfile
     image: findata-python
-    env_file:
-      - .env
+    env_file: *optional_env_file
     environment:
       <<: *ch_kafka_env
       KAFKA_BARS_TOPIC: sp500.bars.dollar
@@ -252,8 +265,7 @@ services:
       context: ..
       dockerfile: FinData/Dockerfile
     image: findata-python
-    env_file:
-      - .env
+    env_file: *optional_env_file
     environment:
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: 8123

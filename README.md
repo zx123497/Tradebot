@@ -66,7 +66,13 @@ uv sync --extra dev
 cp FinData/.env.example FinData/.env
 ```
 
-Edit `FinData/.env` and set `FINNHUB_API_KEY`. Other defaults work for local Docker:
+**Secrets** (`FINNHUB_API_KEY`, `CLICKHOUSE_PASSWORD`, Cloudflare `POLICY_AUD` / `TEAM_DOMAIN`) belong in [GitHub Actions secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) or a secret manager — not in git.
+
+- **CI / deploy:** repository secrets, injected as env vars (`${{ secrets.FINNHUB_API_KEY }}`).
+- **Local:** gitignored `FinData/.env` and `FinLab/backend/.env` (Compose reads them; they are never committed).
+- Push local values up with `make push-secrets` (`gh secret set`, values are not printed).
+
+Non-secret defaults work for local Docker:
 
 | Variable | Default | Notes |
 |----------|---------|-------|
@@ -75,13 +81,13 @@ Edit `FinData/.env` and set `FINNHUB_API_KEY`. Other defaults work for local Doc
 | `KAFKA_BARS_TOPIC` | `sp500.bars.1m` | Aggregated bars |
 | `GICS_SECTOR` | `Information Technology` | Symbol filter |
 | `SYMBOL_LIMIT` | _(unset)_ | Cap subscriptions (Finnhub free tier ~30–50) |
-| `CLICKHOUSE_*` | `findata` / `findata` | DB credentials |
+| `CLICKHOUSE_*` | `findata` / `findata` | Local DB defaults; override password via secret |
 
 ## Run
 
 ### 1. Start everything (recommended for home lab / VM)
 
-Ensure `FinData/.env` has `FINNHUB_API_KEY`, then:
+Ensure `FINNHUB_API_KEY` is set (gitignored `.env` or the environment), then:
 
 ```bash
 make up
@@ -106,6 +112,48 @@ make consumer
 Flink UI: http://localhost:8081
 
 Inside Docker, producer/consumer use `kafka:9092` and `clickhouse:8123`. Host runs still use `localhost` values from `.env`.
+
+### 3. Docker Hub → VM (production)
+
+GitHub Actions builds and pushes four images to Docker Hub under `$DOCKERHUB_USERNAME`:
+
+| Image | Dockerfile |
+|---|---|
+| `$DOCKERHUB_USERNAME/findata-python` | `FinData/Dockerfile` |
+| `$DOCKERHUB_USERNAME/findata-flink` | `findata-flink/Dockerfile` |
+| `$DOCKERHUB_USERNAME/finlab-api` | `FinLab/backend/Dockerfile` |
+| `$DOCKERHUB_USERNAME/finlab-ui` | `FinLab/frontend/Dockerfile` |
+
+**GitHub Actions** (Settings → Secrets and variables):
+
+- Variable or secret `DOCKERHUB_USERNAME` — Docker Hub namespace
+- Secret `DOCKERHUB_TOKEN` — Docker Hub [access token](https://hub.docker.com/settings/security) (Read & Write)
+- `FINNHUB_API_KEY` (and optional `CLICKHOUSE_PASSWORD`, `POLICY_AUD`, `TEAM_DOMAIN`)
+
+Push to `main` (or **Actions → Docker Hub → Run workflow**) publishes `:latest` and `:<git sha>`.
+
+**One-time on the VM:** Docker Engine + Compose, then:
+
+```bash
+export DOCKERHUB_USERNAME=...   # same value as the Actions variable
+echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+git clone <this-repo>
+cp FinData/.env.example FinData/.env   # set FINNHUB_API_KEY; never commit
+```
+
+**Deploy** (pull Hub images, do not build on the VM):
+
+```bash
+export DOCKERHUB_USERNAME=...
+make up-prod        # FinData
+make lab-up-prod    # FinLab
+# or: make vm-deploy
+# pin a build: IMAGE_TAG=<git sha> make up-prod
+```
+
+Optional auto-deploy after a successful push: set Actions **variable** `VM_DEPLOY=true` and secrets `VM_HOST`, `VM_USER`, `VM_SSH_KEY`, `VM_PATH` (repo directory on the VM).
+
+Local `make up` still builds from Dockerfiles. Use `make up-prod` only on the VM.
 
 ## Query ClickHouse
 
@@ -218,7 +266,7 @@ make lab-up
 Dockerfiles: `FinLab/backend/Dockerfile`, `FinLab/frontend/Dockerfile` (compose: `FinLab/docker-compose.yml`).
 
 API routes: `GET /api/health`, `/api/symbols?bar_type=…`, `/api/bars?bar_type=…`, `/api/bars/stream`, `/api/trades`, `/api/trades/stream` (SSE).
-Copy `FinLab/backend/.env.example` if you need non-default ClickHouse settings.
+Copy `FinLab/backend/.env.example` if you need non-default ClickHouse settings. Cloudflare Access (`POLICY_AUD`, `TEAM_DOMAIN`) is injected from GitHub secrets in CI and skipped locally when unset.
 
 ## Notes
 

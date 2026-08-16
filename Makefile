@@ -57,5 +57,24 @@ lab-up:
 lab-down:
 	cd FinLab && docker compose down
 
+# Push gitignored local .env credentials to GitHub Actions secrets
+push-secrets:
+	bash scripts/push-github-secrets.sh
+
+# VM: pull Docker Hub images (no local build).
+# Requires DOCKERHUB_USERNAME. IMAGE_TAG defaults to latest.
+up-prod:
+	@test -n "$(DOCKERHUB_USERNAME)" || (echo "Set DOCKERHUB_USERNAME" >&2; exit 1)
+	cd FinData && docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+	cd FinData && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build --remove-orphans
+
+lab-up-prod:
+	@test -n "$(DOCKERHUB_USERNAME)" || (echo "Set DOCKERHUB_USERNAME" >&2; exit 1)
+	cd FinLab && docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+	cd FinLab && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
+
+vm-deploy:
+	bash scripts/vm-deploy.sh
+
 down:
 	cd FinData && docker compose down

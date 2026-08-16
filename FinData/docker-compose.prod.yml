@@ -1,0 +1,37 @@
+# Overlay for the VM: pull images from Docker Hub instead of building.
+# Requires DOCKERHUB_USERNAME in the environment or FinData/.env.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
+#
+# Pin a digest/SHA with IMAGE_TAG (default: latest).
+
+x-findata-python: &findata_python
+  image: ${DOCKERHUB_USERNAME:?Set DOCKERHUB_USERNAME}/findata-python:${IMAGE_TAG:-latest}
+  pull_policy: always
+
+x-findata-flink: &findata_flink
+  image: ${DOCKERHUB_USERNAME:?Set DOCKERHUB_USERNAME}/findata-flink:${IMAGE_TAG:-latest}
+  pull_policy: always
+
+services:
+  jobmanager:
+    <<: *findata_flink
+  taskmanager:
+    <<: *findata_flink
+  flink-job-submitter:
+    <<: *findata_flink
+  producer:
+    <<: *findata_python
+  trades-consumer:
+    <<: *findata_python
+  consumer:
+    <<: *findata_python
+  consumer-bars-5m:
+    <<: *findata_python
+  consumer-bars-volume:
+    <<: *findata_python
+  consumer-bars-dollar:
+    <<: *findata_python
+  mock-finnhub:
+    <<: *findata_python

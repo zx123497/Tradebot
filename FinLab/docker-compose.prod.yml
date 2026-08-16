@@ -1,0 +1,13 @@
+# Overlay for the VM: pull images from Docker Hub instead of building.
+# Requires DOCKERHUB_USERNAME in the environment or FinLab/.env.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
+
+services:
+  lab-api:
+    image: ${DOCKERHUB_USERNAME:?Set DOCKERHUB_USERNAME}/finlab-api:${IMAGE_TAG:-latest}
+    pull_policy: always
+  lab-ui:
+    image: ${DOCKERHUB_USERNAME:?Set DOCKERHUB_USERNAME}/finlab-ui:${IMAGE_TAG:-latest}
+    pull_policy: always

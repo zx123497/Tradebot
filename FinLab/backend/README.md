@@ -7,6 +7,8 @@ cp .env.example .env   # optional; defaults match FinData
 make lab-api           # from repo root → http://localhost:8000/docs
 ```
 
+Cloudflare Access (`POLICY_AUD`, `TEAM_DOMAIN`) lives in GitHub secrets, not in this repo. Leave them unset locally to skip JWT checks.
+
 Runs `fastapi dev app/main.py` inside `FinLab/backend`.
 
 ### Docker

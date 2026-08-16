@@ -60,7 +60,10 @@ def run_producer(
 ) -> Any:
     """Wire Finnhub WS callbacks to ``publisher``. Returns the WS app instance."""
     if not settings.using_mock_finnhub and not settings.finnhub_api_key:
-        raise ValueError("FINNHUB_API_KEY is required in FinData/.env")
+        raise ValueError(
+            "FINNHUB_API_KEY is required (GitHub secret, secret manager, "
+            "or gitignored FinData/.env)"
+        )
 
     ws_url = settings.resolve_finnhub_ws_url()
     topic = settings.kafka_topic
