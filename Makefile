@@ -37,7 +37,7 @@ mock-finnhub:
 
 # Unit tests (no infra)
 test:
-	uv run pytest FinData/tests/unit -q
+	uv run pytest FinData/tests/unit FinLab/backend/tests -q
 
 # Full pipeline integration test (infra + consumer must already be running)
 test-integration:

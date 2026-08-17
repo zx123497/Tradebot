@@ -279,6 +279,13 @@ make lab-up
 
 Dockerfiles: `FinLab/backend/Dockerfile`, `FinLab/frontend/Dockerfile` (compose: `FinLab/docker-compose.yml`).
 
+API routes: `GET /api/health`, `/api/symbols?bar_type=…`, `/api/bars` + `/api/bars/stream` (closed Flink bars), `/api/bars/live` + `/api/bars/live/stream` (UI: forming open 1m/5m from trades + closed bars), `/api/trades`, `/api/trades/stream` (SSE).
+Copy `FinLab/backend/.env.example` if you need non-default ClickHouse settings.
+API routes: `GET /api/health`, `/api/symbols?bar_type=…`, `/api/bars?bar_type=…`, `/api/bars/stream`, `/api/trades`, `/api/trades/stream` (SSE).
+Copy `FinLab/backend/.env.example` if you need non-default ClickHouse settings. Cloudflare Access (`POLICY_AUD`, `TEAM_DOMAIN`) is injected from GitHub secrets in CI and skipped locally when unset.
+
+The dashboard chart uses the **live** routes so the current minute/5m candle updates
+as trades arrive. Flink closed bars remain the source of truth for strategy analysis.
 API routes: `GET /api/health`, `/api/symbols?bar_type=…`, `/api/bars?bar_type=…`, `/api/bars/stream`, `/api/trades`, `/api/trades/stream` (SSE).
 Copy `FinLab/backend/.env.example` if you need non-default ClickHouse settings. Cloudflare Access (`POLICY_AUD`, `TEAM_DOMAIN`) is injected from GitHub secrets in CI and skipped locally when unset.
 

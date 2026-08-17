@@ -1,18 +1,23 @@
 import { useEffect, useMemo, useState } from "react"
 
 import {
-  getBars,
-  subscribeBarsSSE,
+  getLiveBars,
+  subscribeLiveBarsSSE,
   type Bar,
   type BarType,
 } from "@/api/bars"
 
-function upsertBar(bars: Bar[], bar: Bar): Bar[] {
+/** Upsert by window_start; closed (non-partial) bars always win. */
+export function upsertBar(bars: Bar[], bar: Bar): Bar[] {
   const idx = bars.findIndex((b) => b.window_start === bar.window_start)
   if (idx === -1) {
     return [...bars, bar].sort((a, b) =>
       a.window_start.localeCompare(b.window_start)
     )
+  }
+  const existing = bars[idx]
+  if (existing && !existing.is_partial && bar.is_partial) {
+    return bars
   }
   const copy = [...bars]
   copy[idx] = bar
@@ -36,7 +41,7 @@ export function useBars(symbol: string | null, barType: BarType = "1m") {
     let cancelled = false
     setLoading(true)
     setBars([])
-    void getBars(symbol, { barType, limit: 240 })
+    void getLiveBars(symbol, { barType, limit: 240 })
       .then((res) => {
         if (!cancelled) {
           setBars(res.bars)
@@ -63,7 +68,7 @@ export function useBars(symbol: string | null, barType: BarType = "1m") {
       setLive(false)
       return
     }
-    return subscribeBarsSSE(
+    return subscribeLiveBarsSSE(
       [symbol],
       {
         onStatus: setLive,
