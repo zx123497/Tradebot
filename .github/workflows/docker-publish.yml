@@ -99,6 +99,8 @@ jobs:
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
           IMAGE_TAG: ${{ github.sha }}
           DOCKERHUB_USERNAME: ${{ env.DOCKERHUB_USERNAME }}
+          # Prevent cloudflared from trying to open a browser on the runner.
+          BROWSER: /bin/false
         run: |
           set -euo pipefail
           : "${VM_HOST:?Set secret VM_HOST}"
@@ -109,27 +111,32 @@ jobs:
           : "${CF_ACCESS_CLIENT_SECRET:?Set secret CF_ACCESS_CLIENT_SECRET}"
           : "${DOCKERHUB_USERNAME:?Set DOCKERHUB_USERNAME}"
 
+          # Service token = docs Client ID / Client Secret (not the header names).
+          # https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/
+          # Access app policy must be Action: Service Auth, or cloudflared opens a browser.
+          CF_ACCESS_CLIENT_ID="${CF_ACCESS_CLIENT_ID#CF-Access-Client-Id: }"
+          CF_ACCESS_CLIENT_SECRET="${CF_ACCESS_CLIENT_SECRET#CF-Access-Client-Secret: }"
+
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           umask 077
           printf '%s\n' "$VM_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
-          # Access SSH/TCP hostname (e.g. ssh.ppdragon.net) + service token.
-          # Do not cat this file; it contains the Access secret.
-          cat > ~/.ssh/config <<EOF
-          Host tunnel-vm
-            HostName ${VM_HOST}
-            User ${VM_USER}
-            IdentityFile ~/.ssh/deploy_key
-            IdentitiesOnly yes
-            BatchMode yes
-            StrictHostKeyChecking accept-new
-            ProxyCommand cloudflared access ssh --hostname %h --id ${CF_ACCESS_CLIENT_ID} --secret ${CF_ACCESS_CLIENT_SECRET}
-          EOF
-          chmod 600 ~/.ssh/config
+          printf '%s\n' \
+            '#!/bin/sh' \
+            'exec cloudflared access ssh --hostname "$1" --id "$CF_ACCESS_CLIENT_ID" --secret "$CF_ACCESS_CLIENT_SECRET"' \
+            > ~/.ssh/cf-access-proxy
+          chmod 700 ~/.ssh/cf-access-proxy
 
-          ssh tunnel-vm "set -euo pipefail
+          ssh \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -o IdentityFile="$HOME/.ssh/deploy_key" \
+            -o ProxyCommand="$HOME/.ssh/cf-access-proxy %h" \
+            "${VM_USER}@${VM_HOST}" \
+            "set -euo pipefail
             cd $(printf '%q' "$VM_PATH")
             git pull --ff-only origin main
             export IMAGE_TAG=$(printf '%q' "$IMAGE_TAG")
