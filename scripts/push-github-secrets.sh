@@ -50,6 +50,26 @@ DOCKERHUB_TOKEN="$(dotenv_get "$ROOT/FinData/.env" DOCKERHUB_TOKEN)"
 if [[ -z "$DOCKERHUB_TOKEN" ]]; then
   DOCKERHUB_TOKEN="$(dotenv_get "$ROOT/FinLab/backend/.env" DOCKERHUB_TOKEN)"
 fi
+CF_ACCESS_CLIENT_ID="$(dotenv_get "$ROOT/FinLab/backend/.env" CF_ACCESS_CLIENT_ID)"
+if [[ -z "$CF_ACCESS_CLIENT_ID" ]]; then
+  CF_ACCESS_CLIENT_ID="$(dotenv_get "$ROOT/FinLab/backend/.env" CF_ACCESS_CLIENT_ID)"
+fi
+CF_ACCESS_CLIENT_SECRET="$(dotenv_get "$ROOT/FinLab/backend/.env" CF_ACCESS_CLIENT_SECRET)"
+if [[ -z "$CF_ACCESS_CLIENT_SECRET" ]]; then
+  CF_ACCESS_CLIENT_SECRET="$(dotenv_get "$ROOT/FinLab/backend/.env" CF_ACCESS_CLIENT_SECRET)"
+fi
+VM_USER="$(dotenv_get "$ROOT/FinLab/backend/.env" VM_USER)"
+if [[ -z "$VM_USER" ]]; then
+  VM_USER="$(dotenv_get "$ROOT/FinLab/backend/.env" VM_USER)"
+fi
+VM_PATH="$(dotenv_get "$ROOT/FinLab/backend/.env" VM_PATH)"
+if [[ -z "$VM_PATH" ]]; then
+  VM_PATH="$(dotenv_get "$ROOT/FinLab/backend/.env" VM_PATH)"
+fi
+VM_HOST="$(dotenv_get "$ROOT/FinLab/backend/.env" VM_HOST)"
+if [[ -z "$VM_HOST" ]]; then
+  VM_HOST="$(dotenv_get "$ROOT/FinLab/backend/.env" VM_HOST)"
+fi
 
 push_secret FINNHUB_API_KEY "$FINNHUB_API_KEY"
 push_secret CLICKHOUSE_PASSWORD "$CLICKHOUSE_PASSWORD"
@@ -57,5 +77,9 @@ push_secret POLICY_AUD "$POLICY_AUD"
 push_secret TEAM_DOMAIN "$TEAM_DOMAIN"
 push_secret DOCKERHUB_USERNAME "$DOCKERHUB_USERNAME"
 push_secret DOCKERHUB_TOKEN "$DOCKERHUB_TOKEN"
-
+push_secret CF_ACCESS_CLIENT_ID "$CF_ACCESS_CLIENT_ID"
+push_secret CF_ACCESS_CLIENT_SECRET "$CF_ACCESS_CLIENT_SECRET"
+push_secret VM_USER "$VM_USER"
+push_secret VM_PATH "$VM_PATH"
+push_secret VM_HOST "$VM_HOST"
 echo "Done"

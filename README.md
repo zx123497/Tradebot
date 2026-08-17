@@ -151,7 +151,16 @@ make lab-up-prod    # FinLab
 # pin a build: IMAGE_TAG=<git sha> make up-prod
 ```
 
-Optional auto-deploy after a successful push: set Actions **variable** `VM_DEPLOY=true` and secrets `VM_HOST`, `VM_USER`, `VM_SSH_KEY`, `VM_PATH` (repo directory on the VM).
+Optional auto-deploy after a successful image push: Cloudflare Access SSH into the VM and **pull** Hub images (`make up-prod`, not `--build`).
+
+1. Create a deploy key (no passphrase), install `.pub` on the VM, store the private key as `VM_SSH_KEY`:
+   ```bash
+   ssh-keygen -t ed25519 -C "github-actions-vm-deploy" -f ./github-actions-vm -N ""
+   gh secret set VM_SSH_KEY < ./github-actions-vm
+   ```
+2. Secrets: `VM_HOST` (e.g. `ssh.ppdragon.net`), `VM_USER`, `VM_PATH`, `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`.
+3. Variable `VM_DEPLOY=true`.
+4. VM already cloned, `docker login`, and `FinData/.env` with `FINNHUB_API_KEY`.
 
 Local `make up` still builds from Dockerfiles. Use `make up-prod` only on the VM.
 

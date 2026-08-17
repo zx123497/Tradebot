@@ -30,6 +30,9 @@ jobs:
   #   TEAM_DOMAIN           (Cloudflare Access team URL)
   #   DOCKERHUB_USERNAME    (Actions variable or secret; Docker Hub namespace)
   #   DOCKERHUB_TOKEN       (Docker Hub PAT)
+  #   VM_HOST / VM_USER / VM_SSH_KEY / VM_PATH
+  #   CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET
+  #   VM_DEPLOY=true        (Actions variable; enables SSH deploy)
   compose-config:
     runs-on: ubuntu-latest
     steps:
