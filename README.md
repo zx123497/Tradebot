@@ -153,14 +153,19 @@ make lab-up-prod    # FinLab
 
 Optional auto-deploy after a successful image push: Cloudflare Access SSH into the VM and **pull** Hub images (`make up-prod`, not `--build`).
 
-1. Create a deploy key (no passphrase), install `.pub` on the VM, store the private key as `VM_SSH_KEY`:
+Follow [Cloudflare service tokens](https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/) and [Service Auth policies](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/#service-auth):
+
+1. Zero Trust → **Access controls** → **Service credentials** → **Service Tokens** → **Create Service Token**. Copy **Client ID** and **Client Secret** (the secret is shown only once). Store them as GitHub secrets `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` — the raw values only, not the `CF-Access-Client-Id:` header names.
+2. On the `ssh.ppdragon.net` Access application, add a policy with **Action: Service Auth** that includes this token. Cloudflare: *“Make sure to set the policy action to Service Auth; otherwise, Access will prompt for an identity provider login.”* An **Allow** policy is why GitHub Actions opened a browser.
+3. Create a deploy key (no passphrase), install `.pub` on the VM, store the private key as `VM_SSH_KEY`:
    ```bash
    ssh-keygen -t ed25519 -C "github-actions-vm-deploy" -f ./github-actions-vm -N ""
    gh secret set VM_SSH_KEY < ./github-actions-vm
    ```
-2. Secrets: `VM_HOST` (e.g. `ssh.ppdragon.net`), `VM_USER`, `VM_PATH`, `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`.
-3. Variable `VM_DEPLOY=true`.
-4. VM already cloned, `docker login`, and `FinData/.env` with `FINNHUB_API_KEY`.
+4. Also set secrets `VM_HOST`, `VM_USER`, `VM_PATH`, and variable `VM_DEPLOY=true`.
+5. VM already cloned, `docker login`, and `FinData/.env` with `FINNHUB_API_KEY`.
+
+The deploy job sends the token the same way as the docs’ HTTP headers (`CF-Access-Client-Id` / `CF-Access-Client-Secret`), via `cloudflared access ssh --id … --secret …`. It never uses a browser.
 
 Local `make up` still builds from Dockerfiles. Use `make up-prod` only on the VM.
 
