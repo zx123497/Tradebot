@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import AsyncIterator
 
@@ -19,6 +20,8 @@ from app.forming import (
     window_start_for,
 )
 from app.schemas import Bar, BarsResponse, SymbolSummary
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api",
@@ -411,8 +414,12 @@ async def _live_bar_event_stream(
                     last_forming[key] = fp
                     payload = bar.model_dump(mode="json")
                     yield f"event: bar\ndata: {json.dumps(payload)}\n\n"
-        except Exception as exc:  # noqa: BLE001 — keep SSE alive
-            yield f"event: error\ndata: {json.dumps({'error': str(exc)})}\n\n"
+        except Exception:  # noqa: BLE001 — keep SSE alive
+            logger.exception("Unhandled error in live bars SSE stream")
+            yield (
+                f"event: error\ndata: "
+                f"{json.dumps({'error': 'An internal error occurred.'})}\n\n"
+            )
         await asyncio.sleep(settings.sse_live_poll_interval_sec)
 
 
