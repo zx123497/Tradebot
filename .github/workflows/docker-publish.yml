@@ -82,17 +82,58 @@ jobs:
     if: vars.VM_DEPLOY == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          script_stop: true
-          script: |
-            set -euo pipefail
-            cd "${{ secrets.VM_PATH }}"
+      - name: Install cloudflared
+        run: |
+          curl -fsSL -o /tmp/cloudflared.deb \
+            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i /tmp/cloudflared.deb
+          cloudflared --version
+
+      - name: Pull Hub images on VM via Cloudflare Access SSH
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+          VM_PATH: ${{ secrets.VM_PATH }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          IMAGE_TAG: ${{ github.sha }}
+          DOCKERHUB_USERNAME: ${{ env.DOCKERHUB_USERNAME }}
+        run: |
+          set -euo pipefail
+          : "${VM_HOST:?Set secret VM_HOST}"
+          : "${VM_USER:?Set secret VM_USER}"
+          : "${VM_SSH_KEY:?Set secret VM_SSH_KEY}"
+          : "${VM_PATH:?Set secret VM_PATH}"
+          : "${CF_ACCESS_CLIENT_ID:?Set secret CF_ACCESS_CLIENT_ID}"
+          : "${CF_ACCESS_CLIENT_SECRET:?Set secret CF_ACCESS_CLIENT_SECRET}"
+          : "${DOCKERHUB_USERNAME:?Set DOCKERHUB_USERNAME}"
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          umask 077
+          printf '%s\n' "$VM_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          # Access SSH/TCP hostname (e.g. ssh.ppdragon.net) + service token.
+          # Do not cat this file; it contains the Access secret.
+          cat > ~/.ssh/config <<EOF
+          Host tunnel-vm
+            HostName ${VM_HOST}
+            User ${VM_USER}
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking accept-new
+            ProxyCommand cloudflared access ssh --hostname %h --id ${CF_ACCESS_CLIENT_ID} --secret ${CF_ACCESS_CLIENT_SECRET}
+          EOF
+          chmod 600 ~/.ssh/config
+
+          ssh tunnel-vm "set -euo pipefail
+            cd $(printf '%q' "$VM_PATH")
             git pull --ff-only origin main
-            export IMAGE_TAG="${{ github.sha }}"
-            export DOCKERHUB_USERNAME="${{ env.DOCKERHUB_USERNAME }}"
+            export IMAGE_TAG=$(printf '%q' "$IMAGE_TAG")
+            export DOCKERHUB_USERNAME=$(printf '%q' "$DOCKERHUB_USERNAME")
             make up-prod
-            make lab-up-prod
+            make lab-up-prod"
+
